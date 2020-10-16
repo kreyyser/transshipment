@@ -1,0 +1,16 @@
+---
+services:
+  ports:
+    address: ":8080"
+    port: "58001"
+    services:
+      - portentries
+  restgateway:
+    address: ":8080"
+    port: "58000"
+databases:
+  postgres:
+    address: pgdb:5432
+    dbname: tsst
+    username: dbuser
+    password: secret

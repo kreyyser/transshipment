@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package ports;
+
+option go_package = "github.com/kreyyser/transshipment/pb/portentries";
+
+import "validate/validate.proto";
+import "google/protobuf/wrappers.proto";
+
+service PortsService {
+    rpc CreateOrUpdatePort(CreatePortRequest) returns (EmptyResponse);
+    rpc CreateOrUpdatePortBulk(UpsertPortBulkRequest) returns (EmptyResponse);
+    rpc ListPorts(ListPortsRequest) returns (ListPortsResponse);
+    rpc FetchPort(PortRequest) returns (PortResponse);
+    rpc CreatePort(CreatePortRequest) returns (PortResponse);
+    rpc UpdatePort(UpdatePortRequest) returns (PortResponse);
+    rpc DeletePort(PortRequest) returns (EmptyResponse);
+}
+
+message CreatePortRequest {
+    Port data = 1 [(validate.rules).message.required = true];
+}
+
+message EmptyResponse {
+    int64 status_code = 1;
+    string message = 2;
+}
+
+message UpsertPortBulkRequest {
+    repeated Port data = 1 [(validate.rules).repeated.min_items = 1];
+}
+
+message ListPortsRequest {
+    // TODO PLACE FOR CUSTOMIZATIONS
+}
+
+message ListPortsResponse {
+    int64 status_code = 1;
+    string message = 2;
+    repeated Port data = 3;
+}
+
+message Port {
+    string slug = 1 [(validate.rules).string = { min_len: 5, max_len: 5, pattern: "^[A-Z0-9]+$"}];
+    google.protobuf.Int64Value id = 2;
+    string name = 3;
+    string city = 4;
+    string province = 5;
+    string country = 6;
+    repeated string alias = 7;
+    // TODO find out what type this field has. Assuming array of strings as alias
+    repeated string regions = 8;
+    Coordinates coordinates = 9;
+    string timezone = 10;
+    repeated string unlocks = 11;
+    string code = 12;
+}
+
+message Coordinates {
+    double lng = 1 [(validate.rules).double = { gte: -180, lte: 180 }];
+    double lat = 2 [(validate.rules).double = { gte: -90,  lte: 90 }];
+}
+
+message PortResponse {
+    int64 status_code = 1;
+    string message = 2;
+    Port data = 3;
+}
+
+message PortRequest {
+    google.protobuf.Int64Value id = 1;
+    google.protobuf.StringValue slug = 2 [(validate.rules).string = { min_len: 5, max_len: 5, pattern: "^[A-Z]+$"}];
+}
+
+message UpdatePortRequest {
+    google.protobuf.Int64Value id = 1;
+    google.protobuf.StringValue slug = 2 [(validate.rules).string = { min_len: 5, max_len: 5, pattern: "^[A-Z]+$"}];
+    PortUpdatable data = 3 [(validate.rules).message.required = true];
+}
+
+message PortUpdatable {
+    google.protobuf.StringValue name = 3;
+    google.protobuf.StringValue city = 4;
+    google.protobuf.StringValue province = 5;
+    google.protobuf.StringValue country = 6;
+    repeated string alias = 7;
+    // TODO find out what type this field has. Assuming array of strings as alias
+    repeated string regions = 8;
+    Coordinates coordinates = 9;
+    google.protobuf.StringValue timezone = 10;
+    repeated string unlocks = 11;
+    google.protobuf.StringValue code = 12;
+}

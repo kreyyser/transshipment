@@ -1,0 +1,52 @@
+version: "3.8"
+
+
+services:
+  pgdb:
+    ## IMPORTANT TO NOTE - DIDN'T WANT TO ADD ANY FOLDERS TO SOMEONE'S LOCAL MACHINE
+    ## SO DIDN'T USE VOLUMES MOUNTING. IN OTHER CASES - WOULD DEFINITELY DO THAT.
+    container_name: pgdb
+    networks:
+      - default
+    image: "postgres"
+    ports:
+      - 54322:5432
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-secret}"
+      POSTGRES_USER:     "${POSTGRES_USER:-dbuser}"
+      POSTGRES_DB:       "${POSTGRES_DB:-tsst}"
+    volumes:
+      - ./ports/schema/init.sql:/docker-entrypoint-initdb.d/ports.sql
+
+  ports:
+    container_name: ports
+    networks:
+      - default
+    build:
+      context: ./ports
+    ports:
+      - 58001:8080
+    restart: always
+    depends_on:
+      - pgdb
+    volumes:
+      - ./config.yaml:/usr/local/bin/config.yaml
+
+  restgateway:
+    container_name: restgateway
+    networks:
+      - default
+    build:
+      context: ./restgateway
+    ports:
+      - 58000:8080
+    restart: always
+    depends_on:
+      - pgdb
+      - ports
+    volumes:
+      - ./config.yaml:/usr/local/bin/config.yaml
+
+networks:
+  default:
