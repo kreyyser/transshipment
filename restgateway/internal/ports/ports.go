@@ -40,43 +40,43 @@ func Routes(portsConn *grpc.ClientConn) []router.Route {
 
 	return []router.Route{
 		{
-			Method: http.MethodGet,
-			Path:   "/ports",
+			Method:  http.MethodGet,
+			Path:    "/ports",
 			Handler: srv.ListPorts,
 		},
 		{
-			Method: http.MethodPost,
-			Path:   "/ports",
+			Method:  http.MethodPost,
+			Path:    "/ports",
 			Handler: srv.CreatePort,
 		},
 		{
-			Method: http.MethodGet,
-			Path:   "/ports/{idOrSlug}",
+			Method:  http.MethodGet,
+			Path:    "/ports/{idOrSlug}",
 			Handler: srv.FetchPort,
 		},
 		{
-			Method: http.MethodPut,
-			Path:   "/ports/{idOrSlug}",
+			Method:  http.MethodPut,
+			Path:    "/ports/{idOrSlug}",
 			Handler: srv.UpdatePort,
 		},
 		{
-			Method: http.MethodDelete,
-			Path:   "/ports/{idOrSlug}",
+			Method:  http.MethodDelete,
+			Path:    "/ports/{idOrSlug}",
 			Handler: srv.DeletePort,
 		},
 		{
-			Method: http.MethodPost,
-			Path:   "/upload-ports",
+			Method:  http.MethodPost,
+			Path:    "/upload-ports",
 			Handler: srv.UploadPortsState,
 		},
 	}
 }
 
 // ListPorts returns array of Port to the client
-func (s *PortServer) ListPorts(w http.ResponseWriter, r *http.Request)  {
+func (s *PortServer) ListPorts(w http.ResponseWriter, r *http.Request) {
 	res, err := s.portsClient.ListPorts(r.Context(), &pb.ListPortsRequest{})
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 
@@ -89,7 +89,7 @@ func (s *PortServer) ListPorts(w http.ResponseWriter, r *http.Request)  {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(ports); err != nil {
 			fmt.Printf("error encoding response payload. err: %v", err)
-			respondInternal(w)
+			respondError(err.Error(), w)
 
 			return
 		}
@@ -97,7 +97,7 @@ func (s *PortServer) ListPorts(w http.ResponseWriter, r *http.Request)  {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode([]struct{}{}); err != nil {
 			fmt.Printf("error encoding response payload. err: %v", err)
-			respondInternal(w)
+			respondError(err.Error(), w)
 
 			return
 		}
@@ -105,25 +105,25 @@ func (s *PortServer) ListPorts(w http.ResponseWriter, r *http.Request)  {
 }
 
 // CreatePort creates new Port record
-func (s *PortServer) CreatePort(w http.ResponseWriter, r *http.Request)  {
+func (s *PortServer) CreatePort(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576) // 1MB limit just in case...
 	dec := json.NewDecoder(r.Body)
 	var port Port
 	if err := dec.Decode(&port); err != nil {
-		respondError("error while reading the request data", w)
+		respondError(err.Error(), w)
 		return
 	}
 
-	res, err := s.portsClient.CreatePort(r.Context(), &pb.CreatePortRequest{ Data: toPbPort(port) })
+	res, err := s.portsClient.CreatePort(r.Context(), &pb.CreatePortRequest{Data: toPbPort(port)})
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(fromPbPort(res.Data)); err != nil {
 		fmt.Printf("error encoding response payload. err: %v", err)
-		respondInternal(w)
+		respondError(err.Error(), w)
 
 		return
 	}
@@ -132,7 +132,7 @@ func (s *PortServer) CreatePort(w http.ResponseWriter, r *http.Request)  {
 }
 
 // UpdatePort updates existing Port record
-func (s *PortServer) UpdatePort(w http.ResponseWriter, r *http.Request)  {
+func (s *PortServer) UpdatePort(w http.ResponseWriter, r *http.Request) {
 	idOrSlug := chi.URLParam(r, "idOrSlug")
 	var (
 		id   *int64
@@ -144,43 +144,47 @@ func (s *PortServer) UpdatePort(w http.ResponseWriter, r *http.Request)  {
 		return
 	}
 
-	slug = &idOrSlug
 	if n, err := strconv.ParseInt(idOrSlug, 10, 64); err == nil {
 		id = &n
+	} else {
+		slug = &idOrSlug
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576) // 1MB limit just in case...
 	dec := json.NewDecoder(r.Body)
 	var port Port
 	if err := dec.Decode(&port); err != nil {
-		respondError("error while reading the request data", w)
+		respondError(err.Error(), w)
 		return
 	}
 
 	updReq := &pb.UpdatePortRequest{}
 	if id != nil {
 		updReq.Id = &wrappers.Int64Value{Value: *id}
-	} else {
+	}
+
+	if slug != nil {
 		updReq.Slug = &wrappers.StringValue{Value: *slug}
 	}
 
-	res, err := s.portsClient.UpdatePort(r.Context(), &pb.UpdatePortRequest{ Data: toPbPortUpdatable(port) })
+	updReq.Data = toPbPortUpdatable(port)
+	res, err := s.portsClient.UpdatePort(r.Context(), updReq)
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(fromPbPort(res.Data)); err != nil {
 		fmt.Printf("error encoding response payload. err: %v", err)
-		respondInternal(w)
+		respondError(err.Error(), w)
 
 		return
 	}
 }
 
 // FetchPort returns existing Port record by id or slug
-func (s *PortServer) FetchPort(w http.ResponseWriter, r *http.Request)  {
+func (s *PortServer) FetchPort(w http.ResponseWriter, r *http.Request) {
 	idOrSlug := chi.URLParam(r, "idOrSlug")
 	var (
 		id   *int64
@@ -192,35 +196,38 @@ func (s *PortServer) FetchPort(w http.ResponseWriter, r *http.Request)  {
 		return
 	}
 
-	slug = &idOrSlug
 	if n, err := strconv.ParseInt(idOrSlug, 10, 64); err == nil {
 		id = &n
+	} else {
+		slug = &idOrSlug
 	}
 
 	req := &pb.PortRequest{}
 	if id != nil {
 		req.Id = &wrappers.Int64Value{Value: *id}
-	} else {
+	}
+
+	if slug != nil {
 		req.Slug = &wrappers.StringValue{Value: *slug}
 	}
 
 	res, err := s.portsClient.FetchPort(r.Context(), req)
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(fromPbPort(res.Data)); err != nil {
 		fmt.Printf("error encoding response payload. err: %v", err)
-		respondInternal(w)
+		respondError(err.Error(), w)
 
 		return
 	}
 }
 
 // DeletePort deletes existing Port record by id or slug
-func (s *PortServer) DeletePort(w http.ResponseWriter, r *http.Request)  {
+func (s *PortServer) DeletePort(w http.ResponseWriter, r *http.Request) {
 	idOrSlug := chi.URLParam(r, "idOrSlug")
 	var (
 		id   *int64
@@ -246,7 +253,7 @@ func (s *PortServer) DeletePort(w http.ResponseWriter, r *http.Request)  {
 
 	_, err := s.portsClient.DeletePort(r.Context(), req)
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 }
@@ -261,12 +268,12 @@ func (s *PortServer) DeletePort(w http.ResponseWriter, r *http.Request)  {
 //      ...
 //    },
 // }
-func (s *PortServer) UploadPortsState(w http.ResponseWriter, r *http.Request)  {
+func (s *PortServer) UploadPortsState(w http.ResponseWriter, r *http.Request) {
 	//go mem.PrintUsage()
 	_ = r.ParseMultipartForm(MaxMemoryAllowed) // 10MB
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 	defer func() { _ = file.Close() }()
@@ -274,7 +281,7 @@ func (s *PortServer) UploadPortsState(w http.ResponseWriter, r *http.Request)  {
 	parser := jsonparser.New(MaxMemoryAllowed, ChunkSize) // 10MB and 20 ports at once
 	portsChan, errsChan, err := parser.ParseFile(file)
 	if err != nil {
-		respondInternal(w)
+		respondError(err.Error(), w)
 		return
 	}
 
@@ -286,8 +293,8 @@ func (s *PortServer) UploadPortsState(w http.ResponseWriter, r *http.Request)  {
 		}
 
 		select {
-		case data, ok := <- portsChan:
-			if !ok && len(data) == 0{
+		case data, ok := <-portsChan:
+			if !ok && len(data) == 0 {
 				finished = true
 				break
 			}
@@ -314,7 +321,7 @@ func (s *PortServer) UploadPortsState(w http.ResponseWriter, r *http.Request)  {
 
 			_, err := s.portsClient.CreateOrUpdatePortBulk(r.Context(), &pb.UpsertPortBulkRequest{Data: toPbPorts(ports)})
 			if err != nil {
-				respondInternal(w)
+				respondError(err.Error(), w)
 				return
 			}
 
@@ -322,7 +329,7 @@ func (s *PortServer) UploadPortsState(w http.ResponseWriter, r *http.Request)  {
 				finished = true
 				break
 			}
-		case _ = <- errsChan:
+		case _ = <-errsChan:
 			parseErr = true
 			break
 		}
@@ -386,16 +393,16 @@ func toPbPorts(ports []Port) []*pb.Port {
 
 func toPbPort(port Port) *pb.Port {
 	proto := &pb.Port{
-		Slug:        port.Slug,
-		Name:        port.Name,
-		City:        port.City,
-		Province:    port.Province,
-		Country:     port.Country,
-		Alias:       port.Alias,
-		Regions:     port.Regions,
-		Timezone:    port.Timezone,
-		Unlocks:     port.Unlocks,
-		Code:        port.Country,
+		Slug:     port.Slug,
+		Name:     port.Name,
+		City:     port.City,
+		Province: port.Province,
+		Country:  port.Country,
+		Alias:    port.Alias,
+		Regions:  port.Regions,
+		Timezone: port.Timezone,
+		Unlocks:  port.Unlocks,
+		Code:     port.Country,
 	}
 
 	if len(port.Coordinates) == 2 {
@@ -419,15 +426,15 @@ func toPbPortUpdatable(port Port) *pb.PortUpdatable {
 		Code:        toWString(port.Code),
 	}
 
-	if len(port.Alias) > 0 {
+	if port.Alias != nil {
 		proto.Alias = port.Alias
 	}
 
-	if len(port.Regions) > 0 {
+	if port.Regions != nil {
 		proto.Regions = port.Regions
 	}
 
-	if len(port.Unlocks) > 0 {
+	if port.Unlocks != nil {
 		proto.Unlocks = port.Unlocks
 	}
 
@@ -443,7 +450,7 @@ func toPbPortUpdatable(port Port) *pb.PortUpdatable {
 
 func toWString(s string) *wrappers.StringValue {
 	if s != "" {
-		return &wrappers.StringValue{ Value: s }
+		return &wrappers.StringValue{Value: s}
 	}
 
 	return nil

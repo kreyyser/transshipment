@@ -14,8 +14,8 @@ var _ interface {
 
 // Service encapsulates ports operations
 type Service struct {
-	db           *gorm.DB
-	store        PortsDB
+	db    *gorm.DB
+	store PortsDB
 }
 
 // NewPortsService returns pointer to newly created Ports service
@@ -182,19 +182,19 @@ type IDSlugger interface {
 
 func extractIdOrSlug(req IDSlugger) (*int64, *string) {
 	var (
-		id int64
-		slug string
+		id   *int64
+		slug *string
 	)
 
 	if req.GetId() != nil {
-		id = req.GetId().Value
+		id = &req.GetId().Value
 	}
 
 	if req.GetSlug() != nil {
-		slug = req.GetSlug().Value
+		slug = &req.GetSlug().Value
 	}
 
-	return &id, &slug
+	return id, slug
 }
 
 func pbToPorts(protos []*pb.Port) []PortEntry {
@@ -221,20 +221,20 @@ func portsToPB(ports []PortEntry) []*pb.Port {
 
 func pbPortToModel(proto *pb.Port) PortEntry {
 	pe := PortEntry{
-		Slug:      proto.Slug,
-		Code:      proto.Code,
-		Name:      proto.Name,
-		City:      proto.City,
-		Province:  proto.Province,
-		Country:   proto.Country,
-		Alias:     proto.Alias,
-		Regions:   proto.Regions,
-		Timezone:  proto.Timezone,
-		Unlocks:   proto.Unlocks,
+		Slug:     proto.Slug,
+		Code:     proto.Code,
+		Name:     proto.Name,
+		City:     proto.City,
+		Province: proto.Province,
+		Country:  proto.Country,
+		Alias:    proto.Alias,
+		Regions:  proto.Regions,
+		Timezone: proto.Timezone,
+		Unlocks:  proto.Unlocks,
 	}
 
 	if proto.Coordinates != nil {
-		pe.Latitude =  proto.Coordinates.Lat
+		pe.Latitude = proto.Coordinates.Lat
 		pe.Longitude = proto.Coordinates.Lng
 	}
 
@@ -243,20 +243,20 @@ func pbPortToModel(proto *pb.Port) PortEntry {
 
 func portToPB(port PortEntry) *pb.Port {
 	return &pb.Port{
-		Slug:        port.Slug,
-		Id:          &wrappers.Int64Value{Value: port.ID},
-		Name:        port.Name,
-		City:        port.City,
-		Province:    port.Province,
-		Country:     port.Country,
-		Alias:       port.Alias,
-		Regions:     port.Regions,
+		Slug:     port.Slug,
+		Id:       &wrappers.Int64Value{Value: port.ID},
+		Name:     port.Name,
+		City:     port.City,
+		Province: port.Province,
+		Country:  port.Country,
+		Alias:    port.Alias,
+		Regions:  port.Regions,
 		Coordinates: &pb.Coordinates{
 			Lng: port.Longitude,
 			Lat: port.Latitude,
 		},
-		Timezone:    port.Timezone,
-		Unlocks:     port.Unlocks,
-		Code:        port.Code,
+		Timezone: port.Timezone,
+		Unlocks:  port.Unlocks,
+		Code:     port.Code,
 	}
 }

@@ -2,6 +2,7 @@ package portentries
 
 import (
 	"context"
+	"errors"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -100,7 +101,12 @@ func (d Datastore) Fetch(ctx context.Context, id *int64, slug *string) (PortEntr
 		q = q.Where("id = ?", *id)
 	}
 
-	return port, q.Find(&port).Error
+	res := q.Find(&port)
+	if res.RowsAffected == 0 {
+		return PortEntry{}, errors.New("port not found")
+	}
+
+	return port, res.Error
 }
 
 // Store creates new port in the DB
@@ -124,5 +130,5 @@ func (d Datastore) Delete(ctx context.Context, id *int64, slug *string) error {
 		q = q.Where("slug = ?", *slug)
 	}
 
-	return d.db.WithContext(ctx).Delete(&PortEntry{}).Error
+	return q.Delete(&PortEntry{}).Error
 }
