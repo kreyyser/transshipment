@@ -22,18 +22,15 @@ func run() (int, interface{}) {
 	// Handle command line options
 	flagset := pflag.NewFlagSet("ports", pflag.ExitOnError)
 	configPath := flagset.StringP("config", "c", "", "Path to transhipment config yaml")
-	//conf := "/Users/kreyser/Projects/personal/transshipment/ports/cmd/config.yaml"
 	_ = flagset.Parse(os.Args[1:])
 
 	// Transhipment config file should exist in the file system
 	if _, err := os.Stat(*configPath); os.IsNotExist(err) {
-	//if _, err := os.Stat(conf); os.IsNotExist(err) {
 		return initError, "no config file provided"
 	}
 
 	// Build the Config Manager
 	cfmgr := config.NewManager(*configPath)
-	//cfmgr := config.NewManager(conf)
 
 	// Load configuration file
 	if err := cfmgr.Load(); err != nil {
